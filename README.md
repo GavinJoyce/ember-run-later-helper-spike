@@ -1,6 +1,6 @@
 # ember-run-later-helper-spike
 
-This is a simple spike of some test helpers which make testing code with Em.run.laters easier.
+This is a simple spike of some [test helpers](https://github.com/GavinJoyce/ember-run-later-helper-spike/blob/master/tests/helpers/mock-run-later.js) which make testing code with Em.run.laters easier.
 
 Consider the [component](https://github.com/GavinJoyce/ember-run-later-helper-spike/blob/master/app/components/button-with-tasks.js):
 

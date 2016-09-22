@@ -1,53 +1,85 @@
-# Ember-run-later-helper-spike
+# ember-run-later-helper-spike
 
-This README outlines the details of collaborating on this Ember application.
-A short introduction of this app could easily go here.
+This is a simple spike of some test helpers which make testing code with Em.run.laters easier.
 
-## Prerequisites
+Consider the [component](https://github.com/GavinJoyce/ember-run-later-helper-spike/blob/master/app/components/button-with-tasks.js):
 
-You will need the following things properly installed on your computer.
+```js
+import Em from 'ember';
+import { task, timeout } from 'ember-concurrency';
 
-* [Git](http://git-scm.com/)
-* [Node.js](http://nodejs.org/) (with NPM)
-* [Bower](http://bower.io/)
-* [Ember CLI](http://ember-cli.com/)
-* [PhantomJS](http://phantomjs.org/)
+export default Em.Component.extend({
+  buttonText: 'Click me',
 
-## Installation
+  buttonPressed: task(function * () {
+    this.set('buttonText', '...please wait...');
+    yield timeout(1000);
+    this.set('buttonText', '...continue to wait...');
+    yield timeout(2000);
+    this.set('buttonText', 'Click me again');
+  })
+});
+```
 
-* `git clone <repository-url>` this repository
-* change into the new directory
-* `npm install`
-* `bower install`
+With the [mock-run-later helper](https://github.com/GavinJoyce/ember-run-later-helper-spike/blob/master/tests/helpers/mock-run-later.js), these [tests](https://github.com/GavinJoyce/ember-run-later-helper-spike/blob/master/tests/integration/components/button-with-tasks-test.js) are possible:
 
-## Running / Development
+```js
+import Em from 'ember';
+import hbs from 'htmlbars-inline-precompile';
+import { moduleForComponent, test } from 'ember-qunit';
+import { mockRunLater, restoreRunLater } from '../../helpers/mock-run-later';
 
-* `ember serve`
-* Visit your app at [http://localhost:4200](http://localhost:4200).
+moduleForComponent('button-with-tasks', { integration: true });
 
-### Code Generators
+test('should change text after a delay (with next())', function(assert) {
+  mockRunLater(this);
 
-Make use of the many generators for code, try `ember help generate` for more details
+  assert.expect(4);
 
-### Running Tests
+  this.render(hbs`{{button-with-tasks}}`);
 
-* `ember test`
-* `ember test --server`
+  assert.equal(this.$('button').text(), 'Click me');
 
-### Building
+  Em.run(() => this.$('button').click());
 
-* `ember build` (development)
-* `ember build --environment production` (production)
+  assert.equal(this.$('button').text(), '...please wait...');
 
-### Deploying
+  this.mockedRunLater.next();
 
-Specify what it takes to deploy your app.
+  assert.equal(this.$('button').text(), '...continue to wait...');
 
-## Further Reading / Useful Links
+  this.mockedRunLater.next();
 
-* [ember.js](http://emberjs.com/)
-* [ember-cli](http://ember-cli.com/)
-* Development Browser Extensions
-  * [ember inspector for chrome](https://chrome.google.com/webstore/detail/ember-inspector/bmdblncegkenkacieihfhpjfppoconhi)
-  * [ember inspector for firefox](https://addons.mozilla.org/en-US/firefox/addon/ember-inspector/)
+  assert.equal(this.$('button').text(), 'Click me again');
 
+  restoreRunLater(this);
+});
+
+test('should change text after a delay (with advanceMilliseconds())', function(assert) {
+  mockRunLater(this);
+
+  assert.expect(5);
+
+  this.render(hbs`{{button-with-tasks}}`);
+
+  assert.equal(this.$('button').text(), 'Click me');
+
+  Em.run(() => this.$('button').click());
+
+  assert.equal(this.$('button').text(), '...please wait...');
+
+  this.mockedRunLater.advanceMilliseconds(800);
+
+  assert.equal(this.$('button').text(), '...please wait...'); //no run.later is executed
+
+  this.mockedRunLater.advanceMilliseconds(201); //TODO: GJ: we may be off by one here
+
+  assert.equal(this.$('button').text(), '...continue to wait...');
+
+  this.mockedRunLater.advanceMilliseconds(2000);
+
+  assert.equal(this.$('button').text(), 'Click me again');
+
+  restoreRunLater(this);
+});
+```
